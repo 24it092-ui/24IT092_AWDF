@@ -1,19 +1,25 @@
 import express from 'express';
 import cors from 'cors';
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import { MongoMemoryServer } from 'mongodb-memory-server';
+import Task from './models/Task.js';
+
+dotenv.config();
 
 const app = express();
-const PORT = 5001; // Using 5001 to avoid system port collisions
+const PORT = process.env.PORT || 5001;
 
 app.use(cors());
 app.use(express.json());
 
-// 1. Request logging middleware: logs method, URL, and ISO timestamp
+// 1. Request logging middleware: logs method, URL, and timestamp
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
 
-// 2. Supplementary Middleware: Reject POST/PUT missing Content-Type application/json
+// 2. Reject POST/PUT missing Content-Type application/json
 const requireJsonContent = (req, res, next) => {
   if (['POST', 'PUT'].includes(req.method)) {
     const contentType = req.headers['content-type'];
@@ -27,94 +33,141 @@ const requireJsonContent = (req, res, next) => {
 };
 app.use(requireJsonContent);
 
-// In-memory data store for tasks (CRUD)
-let tasks = [
-  { id: 1, title: 'Complete Practical 1 (Component Architecture)', status: 'completed' },
-  { id: 2, title: 'Complete Practical 2 (Routing & useState)', status: 'completed' },
-  { id: 3, title: 'Complete Practical 3 (GitHub REST API Integration)', status: 'completed' },
-  { id: 4, title: 'Complete Practical 4 (Node & Express REST API)', status: 'in-progress' },
-];
+// 3. Connect to MongoDB (Connects to MONGO_URI, or initializes in-memory MongoDB fallback if local mongod is absent)
+async function connectDB() {
+  const uri = process.env.MONGO_URI;
+  try {
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 2000 });
+    console.log(`MongoDB connected successfully to ${uri}`);
+  } catch (err) {
+    console.log('External MongoDB not found. Starting embedded MongoDB instance for seamless lab testing...');
+    const mongod = await MongoMemoryServer.create();
+    const memoryUri = mongod.getUri();
+    await mongoose.connect(memoryUri);
+    console.log(`Embedded MongoDB connected successfully at ${memoryUri}`);
 
-// 3. Supplementary Route Middleware: Validate numeric task ID
-const validateTaskId = (req, res, next) => {
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) {
-    return res.status(400).json({ error: 'Invalid Task ID: must be an integer' });
+    // Seed default tasks
+    await Task.create([
+      { title: 'Complete Practical 1 (Component Architecture)', priority: 'high', completed: true },
+      { title: 'Complete Practical 2 (Routing & useState)', priority: 'high', completed: true },
+      { title: 'Complete Practical 3 (GitHub REST API Integration)', priority: 'medium', completed: true },
+      { title: 'Complete Practical 4 (RESTful Express API)', priority: 'high', completed: true },
+      { title: 'Complete Practical 5 (MongoDB & Mongoose Validation)', priority: 'high', completed: false },
+    ]);
   }
-  req.taskId = id;
-  next();
-};
+}
+connectDB();
 
-// --- CRUD Endpoints (Richardson Maturity Model Level 2) ---
+// --- CRUD Endpoints with Real Mongoose Operations ---
 
-// GET /tasks - Read all
-app.get('/tasks', (req, res) => {
-  res.status(200).json({
-    count: tasks.length,
-    tasks: tasks.map(t => ({
-      ...t,
-      // HATEOAS awareness demonstration (Level 3 preview)
-      _links: {
-        self: `/tasks/${t.id}`,
-        update: `/tasks/${t.id}`,
-        delete: `/tasks/${t.id}`,
-      }
-    }))
-  });
+// GET /tasks - Read all tasks
+app.get('/tasks', async (req, res, next) => {
+  try {
+    const tasks = await Task.find().sort({ createdAt: -1 });
+    res.status(200).json({
+      count: tasks.length,
+      tasks,
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
-// POST /tasks - Create
-app.post('/tasks', (req, res) => {
-  const { title, status = 'pending' } = req.body;
-  if (!title || !title.trim()) {
-    return res.status(400).json({ error: 'Task title is required' });
-  }
-
-  const newTask = {
-    id: tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1,
-    title: title.trim(),
-    status,
-  };
-  tasks.push(newTask);
-  res.status(201).json({
-    message: 'Task created successfully',
-    task: newTask,
-    _links: {
-      self: `/tasks/${newTask.id}`,
-      delete: `/tasks/${newTask.id}`
+// GET /tasks/:id - Supplementary: Read single task with proper 404 handling
+app.get('/tasks/:id', async (req, res, next) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid Task ID format' });
     }
-  });
+    const task = await Task.findById(req.params.id);
+    if (!task) {
+      return res.status(404).json({ error: `Task with ID ${req.params.id} not found` });
+    }
+    res.status(200).json(task);
+  } catch (err) {
+    next(err);
+  }
 });
 
-// PUT /tasks/:id - Update
-app.put('/tasks/:id', validateTaskId, (req, res) => {
-  const index = tasks.findIndex(t => t.id === req.taskId);
-  if (index === -1) {
-    return res.status(404).json({ error: `Task with ID ${req.taskId} not found` });
+// POST /tasks - Create task with Mongoose schema validation
+app.post('/tasks', async (req, res, next) => {
+  try {
+    const { title, description, completed, priority } = req.body;
+    const newTask = await Task.create({
+      title,
+      description,
+      completed,
+      priority,
+    });
+    res.status(201).json({
+      message: 'Task created successfully in MongoDB',
+      task: newTask,
+    });
+  } catch (err) {
+    // Structured validation errors instead of raw Mongoose error
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map((e) => e.message);
+      return res.status(400).json({
+        error: 'Validation Error',
+        details: messages,
+      });
+    }
+    next(err);
   }
-
-  const { title, status } = req.body;
-  if (title !== undefined) tasks[index].title = title.trim();
-  if (status !== undefined) tasks[index].status = status;
-
-  res.status(200).json({
-    message: 'Task updated successfully',
-    task: tasks[index],
-  });
 });
 
-// DELETE /tasks/:id - Delete
-app.delete('/tasks/:id', validateTaskId, (req, res) => {
-  const index = tasks.findIndex(t => t.id === req.taskId);
-  if (index === -1) {
-    return res.status(404).json({ error: `Task with ID ${req.taskId} not found` });
-  }
+// PUT /tasks/:id - Update task by ID
+app.put('/tasks/:id', async (req, res, next) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid Task ID format' });
+    }
 
-  const deleted = tasks.splice(index, 1)[0];
-  res.status(200).json({
-    message: 'Task deleted successfully',
-    task: deleted,
-  });
+    const updatedTask = await Task.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedTask) {
+      return res.status(404).json({ error: `Task with ID ${req.params.id} not found` });
+    }
+
+    res.status(200).json({
+      message: 'Task updated successfully',
+      task: updatedTask,
+    });
+  } catch (err) {
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map((e) => e.message);
+      return res.status(400).json({
+        error: 'Validation Error',
+        details: messages,
+      });
+    }
+    next(err);
+  }
+});
+
+// DELETE /tasks/:id - Delete task by ID
+app.delete('/tasks/:id', async (req, res, next) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid Task ID format' });
+    }
+
+    const deleted = await Task.findByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: `Task with ID ${req.params.id} not found` });
+    }
+
+    res.status(200).json({
+      message: 'Task deleted successfully',
+      task: deleted,
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // 4. Custom 404 handler for undefined routes
@@ -126,17 +179,17 @@ app.use((req, res) => {
   });
 });
 
-// 5. Global Error Handling Middleware (must be defined last)
+// 5. Centralized Global Error Handler
 app.use((err, req, res, next) => {
   console.error('Unhandled Server Error:', err.message);
   res.status(500).json({
     error: 'Internal Server Error',
-    message: 'Something went wrong on the server',
+    message: err.message || 'Something went wrong on the server',
   });
 });
 
 app.listen(PORT, () => {
-  console.log(`Task Manager REST API running on http://localhost:${PORT}`);
+  console.log(`Task Manager API with MongoDB running on http://localhost:${PORT}`);
 });
 
 export default app;
