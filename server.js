@@ -8,6 +8,7 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 import Task from './models/Task.js';
 import User from './models/User.js';
 import cache, { cacheStats } from './cache.js';
+import taskEvents from './events.js';
 
 dotenv.config();
 
@@ -220,6 +221,9 @@ app.post('/tasks', authMiddleware, validateTaskInput, async (req, res, next) => 
     // Cache Invalidation
     cache.del('all_tasks');
 
+    // Practical 10: Asynchronous event emission
+    taskEvents.emit('task:created', newTask);
+
     res.status(201).json({ message: 'Task created', task: newTask });
   } catch (err) {
     next(err);
@@ -239,6 +243,9 @@ app.put('/tasks/:id', authMiddleware, async (req, res, next) => {
     cache.del('all_tasks');
     cache.del(`task_${req.params.id}`);
 
+    // Practical 10: Asynchronous event emission
+    taskEvents.emit('task:updated', updatedTask);
+
     res.status(200).json({ message: 'Task updated', task: updatedTask });
   } catch (err) {
     next(err);
@@ -257,6 +264,9 @@ app.delete('/tasks/:id', authMiddleware, async (req, res, next) => {
     // Invalidate caches
     cache.del('all_tasks');
     cache.del(`task_${req.params.id}`);
+
+    // Practical 10: Asynchronous event emission
+    taskEvents.emit('task:deleted', deleted);
 
     res.status(200).json({ message: 'Task deleted', task: deleted });
   } catch (err) {
