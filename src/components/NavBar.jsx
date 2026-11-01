@@ -7,6 +7,7 @@ export default function NavBar({ isDarkMode, onToggleTheme }) {
     { to: '/tasks', label: 'MongoDB Tasks' },
     { to: '/cache', label: 'Cache Optimization' },
     { to: '/events', label: 'Event-Driven' },
+    { to: '/ai-assistant', label: 'AI Assistant' },
     { to: '/contact', label: 'Contact' },
   ];
 
