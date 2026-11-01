@@ -9,6 +9,7 @@ import './index.css';
 const Home = lazy(() => import('./components/Home'));
 const Projects = lazy(() => import('./components/Projects'));
 const TasksManager = lazy(() => import('./components/TasksManager'));
+const CacheOptimizationView = lazy(() => import('./components/CacheOptimizationView'));
 const Contact = lazy(() => import('./components/Contact'));
 const NotFound = lazy(() => import('./components/NotFound'));
 
@@ -68,6 +69,7 @@ export default function App() {
             />
             <Route path="/projects" element={<Projects projectList={studentData.projects} />} />
             <Route path="/tasks" element={<TasksManager />} />
+            <Route path="/cache" element={<CacheOptimizationView />} />
             <Route path="/contact" element={<Contact studentEmail={studentData.email} />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -5,6 +5,7 @@ export default function NavBar({ isDarkMode, onToggleTheme }) {
     { to: '/', label: 'Home' },
     { to: '/projects', label: 'Projects (API)' },
     { to: '/tasks', label: 'MongoDB Tasks' },
+    { to: '/cache', label: 'Cache Optimization' },
     { to: '/contact', label: 'Contact' },
   ];
 
