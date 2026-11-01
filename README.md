@@ -26,6 +26,7 @@ Each practical assignment has its own dedicated commit and Git Release Tag. You 
 | **Practical 9** | In-Memory Caching & Query Optimization | [`practical-9`](#) | `node-cache` integration, 60s TTL, cache invalidation on POST/PUT/DELETE, single-task cache, cache hit/miss stats endpoint ([docs/CACHING.md](docs/CACHING.md)) |
 | **Practical 10** | Asynchronous Processing with Event-Driven Architecture | [`practical-10`](#) | `EventEmitter` asynchronous messaging, `task:created`, `task:updated`, `task:deleted` non-blocking background workers ([docs/EVENTS.md](docs/EVENTS.md)) |
 | **Practical 12** | CI/CD Pipeline with GitHub Actions | [`practical-12`](#) | `.github/workflows/ci.yml`, automated Vitest suite, lint job (Oxlint), build verification, failure/pass docs ([docs/CICD.md](docs/CICD.md)) |
+| **Practical 13** | AI API Integration into a Web Application | [`practical-13`](#) | Server-side AI endpoint `/api/ai/generate-description`, graceful degradation, rate limiting, editable description & disclaimer ([docs/AI_INTEGRATION.md](docs/AI_INTEGRATION.md)) |
 
 ---
 

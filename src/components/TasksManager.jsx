@@ -16,12 +16,46 @@ export default function TasksManager() {
 
   // Task form state
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('medium');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiDisclaimer, setAiDisclaimer] = useState('');
   const [toast, setToast] = useState(null);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
+  };
+
+  // Practical 13: Auto-generate task description via backend AI API
+  const handleGenerateAiDescription = async () => {
+    if (!title.trim()) {
+      showToast('Enter a task title first to generate AI description', 'error');
+      return;
+    }
+    setAiLoading(true);
+    setAiDisclaimer('');
+
+    try {
+      const res = await fetch('http://localhost:5001/api/ai/generate-description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok && res.status !== 200) {
+        showToast(data.error || 'AI generation failed', 'error');
+      } else {
+        setDescription(data.description || '');
+        setAiDisclaimer(data.disclaimer || 'AI-generated. Please review before saving.');
+        showToast('✓ AI description generated!');
+      }
+    } catch (err) {
+      setDescription(`Execute and test "${title.trim()}" thoroughly.`);
+      setAiDisclaimer('Offline fallback active. Please review.');
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   // Check current session via /me endpoint
@@ -99,17 +133,21 @@ export default function TasksManager() {
     const optimisticTask = {
       _id: optimisticId,
       title: title.trim(),
+      description: description.trim(),
       priority,
       completed: false,
     };
 
     setTasks((prev) => [optimisticTask, ...prev]);
     const inputTitle = title;
+    const inputDesc = description;
     setTitle('');
+    setDescription('');
+    setAiDisclaimer('');
     showToast('Task added optimistically! Syncing with MongoDB...', 'info');
 
     try {
-      const result = await createTask({ title: inputTitle, priority });
+      const result = await createTask({ title: inputTitle, description: inputDesc, priority });
       setTasks((prev) => prev.map((t) => (t._id === optimisticId ? result.task : t)));
       showToast('✓ Task confirmed & persisted in MongoDB!', 'success');
     } catch (err) {
@@ -279,49 +317,98 @@ export default function TasksManager() {
             </button>
           </div>
 
-          {/* Task Creation Form (Protected by JWT) */}
-          <form onSubmit={handleCreate} style={{ marginBottom: '2rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="New task title..."
-              style={{
-                flex: '1',
-                minWidth: '240px',
-                background: 'rgba(0,0,0,0.25)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '8px',
-                padding: '0.75rem 1rem',
-                color: '#fff',
-                outline: 'none',
-              }}
-            />
+          {/* Task Creation Form with AI Assistance */}
+          <form onSubmit={handleCreate} style={{ marginBottom: '2.5rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="New task title (e.g. Implement OAuth Flow)..."
+                style={{
+                  flex: '1',
+                  minWidth: '240px',
+                  background: 'rgba(0,0,0,0.25)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  padding: '0.75rem 1rem',
+                  color: '#fff',
+                  outline: 'none',
+                }}
+              />
 
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value)}
-              style={{
-                background: 'rgba(30,41,59,0.9)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '8px',
-                padding: '0.75rem 1rem',
-                color: '#fff',
-                outline: 'none',
-              }}
-            >
-              <option value="low">Low Priority</option>
-              <option value="medium">Medium Priority</option>
-              <option value="high">High Priority</option>
-            </select>
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+                style={{
+                  background: 'rgba(30,41,59,0.9)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  padding: '0.75rem 1rem',
+                  color: '#fff',
+                  outline: 'none',
+                }}
+              >
+                <option value="low">Low Priority</option>
+                <option value="medium">Medium Priority</option>
+                <option value="high">High Priority</option>
+              </select>
 
-            <button
-              type="submit"
-              className="nav-button"
-              style={{ background: 'var(--primary)', color: '#fff', borderRadius: '8px', padding: '0.75rem 1.5rem' }}
-            >
-              + Add Protected Task
-            </button>
+              {/* Practical 13: Auto-generate description via Backend AI */}
+              <button
+                type="button"
+                disabled={aiLoading}
+                onClick={handleGenerateAiDescription}
+                className="nav-button"
+                style={{
+                  background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+                  color: '#fff',
+                  borderRadius: '8px',
+                  padding: '0.75rem 1.25rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                }}
+                title="Practical 13: Auto-generate description via Backend AI"
+              >
+                <span>✨</span>
+                <span>{aiLoading ? 'AI Generating...' : 'Auto-Generate AI Description'}</span>
+              </button>
+
+              <button
+                type="submit"
+                className="nav-button"
+                style={{ background: 'var(--primary)', color: '#fff', borderRadius: '8px', padding: '0.75rem 1.4rem' }}
+              >
+                + Save Task
+              </button>
+            </div>
+
+            {/* Editable Description Field & AI Disclaimer */}
+            <div>
+              <textarea
+                rows="2"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Task description (optional, or click ✨ Auto-Generate AI Description above)..."
+                style={{
+                  width: '100%',
+                  background: 'rgba(0,0,0,0.2)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  padding: '0.65rem 0.9rem',
+                  color: '#e2e8f0',
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                }}
+              />
+              {aiDisclaimer && (
+                <span style={{ fontSize: '0.75rem', color: 'var(--accent)', marginTop: '0.2rem', display: 'block' }}>
+                  ℹ️ {aiDisclaimer}
+                </span>
+              )}
+            </div>
           </form>
 
           {/* Tasks List */}
@@ -357,23 +444,32 @@ export default function TasksManager() {
                       onChange={() => handleToggle(t)}
                       style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                     />
-                    <span style={{ textDecoration: t.completed ? 'line-through' : 'none', color: t.completed ? 'var(--text-sub)' : '#fff', fontWeight: 500 }}>
-                      {t.title}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '0.72rem',
-                        textTransform: 'uppercase',
-                        padding: '0.15rem 0.5rem',
-                        borderRadius: '4px',
-                        fontWeight: 700,
-                        background:
-                          t.priority === 'high' ? 'rgba(239,68,68,0.2)' : t.priority === 'medium' ? 'rgba(245,158,11,0.2)' : 'rgba(56,189,248,0.2)',
-                        color: t.priority === 'high' ? '#f87171' : t.priority === 'medium' ? '#fbbf24' : '#38bdf8',
-                      }}
-                    >
-                      {t.priority}
-                    </span>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <span style={{ textDecoration: t.completed ? 'line-through' : 'none', color: t.completed ? 'var(--text-sub)' : '#fff', fontWeight: 600 }}>
+                          {t.title}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '0.72rem',
+                            textTransform: 'uppercase',
+                            padding: '0.15rem 0.5rem',
+                            borderRadius: '4px',
+                            fontWeight: 700,
+                            background:
+                              t.priority === 'high' ? 'rgba(239,68,68,0.2)' : t.priority === 'medium' ? 'rgba(245,158,11,0.2)' : 'rgba(56,189,248,0.2)',
+                            color: t.priority === 'high' ? '#f87171' : t.priority === 'medium' ? '#fbbf24' : '#38bdf8',
+                          }}
+                        >
+                          {t.priority}
+                        </span>
+                      </div>
+                      {t.description && (
+                        <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.25rem', lineHeight: '1.4' }}>
+                          {t.description}
+                        </p>
+                      )}
+                    </div>
                   </div>
 
                   <button

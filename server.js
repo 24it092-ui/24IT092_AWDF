@@ -161,6 +161,81 @@ app.get('/events/audit', (req, res) => {
   });
 });
 
+// --- Practical 13: Secure Backend AI Integration with Graceful Degradation ---
+// Simple in-memory rate limiter: max 1 AI request per client per 10 seconds
+const aiRateLimiter = new Map();
+
+app.post('/api/ai/generate-description', async (req, res) => {
+  const { title } = req.body;
+  if (!title || !title.trim()) {
+    return res.status(400).json({ error: 'Task title is required' });
+  }
+
+  const clientIP = req.ip || req.connection.remoteAddress || 'client';
+  const lastCall = aiRateLimiter.get(clientIP) || 0;
+  const now = Date.now();
+
+  if (now - lastCall < 10000) {
+    const waitSec = Math.ceil((10000 - (now - lastCall)) / 1000);
+    return res.status(429).json({
+      error: `Rate limit: Please wait ${waitSec}s before generating another description`,
+      fallback: true,
+    });
+  }
+  aiRateLimiter.set(clientIP, now);
+
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  // Graceful degradation: If key is missing or invalid, generate intelligent rule-based fallback
+  if (!apiKey || apiKey === 'mock_or_real_key' || apiKey.includes('your_')) {
+    // Graceful offline fallback logic
+    const fallbackDescription = `Break down "${title.trim()}" into actionable milestones, verify required dependencies, and execute validation tests.`;
+    return res.status(200).json({
+      description: fallbackDescription,
+      fallback: true,
+      provider: 'Local AI Fallback Engine (Graceful Degradation)',
+      disclaimer: 'Generated via fallback engine. Review and edit before saving.',
+    });
+  }
+
+  try {
+    const OpenAI = (await import('openai')).default;
+    const client = new OpenAI({ apiKey });
+
+    const completion = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an agile project assistant. Provide a concise, 1-2 sentence actionable task description for software development.',
+        },
+        {
+          role: 'user',
+          content: `Write a short task description for: "${title.trim()}"`,
+        },
+      ],
+      max_tokens: 80,
+    });
+
+    const description = completion.choices?.[0]?.message?.content?.trim() || '';
+    res.status(200).json({
+      description,
+      fallback: false,
+      provider: 'OpenAI gpt-4o-mini',
+      disclaimer: 'AI-generated content. Please review and modify before saving.',
+    });
+  } catch (err) {
+    console.warn('External AI call failed. Gracefully degrading to intelligent fallback:', err.message);
+    const fallbackDescription = `Implement and verify "${title.trim()}" with proper error handling and automated test coverage.`;
+    res.status(200).json({
+      description: fallbackDescription,
+      fallback: true,
+      provider: 'Graceful Degradation Fallback',
+      disclaimer: 'AI service unavailable. Generated via graceful offline fallback.',
+    });
+  }
+});
+
 // --- Protected Task CRUD Routes with In-Memory Caching ---
 
 // GET /tasks - Cached with node-cache
