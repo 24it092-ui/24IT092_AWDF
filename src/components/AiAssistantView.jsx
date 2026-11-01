@@ -71,7 +71,7 @@ export default function AiAssistantView() {
       <div className="section-header">
         <div className="section-icon">🤖</div>
         <div>
-          <h2>Practical 13: AI Assistant & Description Generator</h2>
+          <h2>AI Assistant & Description Generator</h2>
           <p className="section-subtitle">
             Secure Backend AI Integration (OpenAI / Gemini) with Graceful Degradation & Rate Limiting
           </p>
