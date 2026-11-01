@@ -36,12 +36,15 @@ export default function TasksManager() {
     }
   };
 
+  const [cacheStatus, setCacheStatus] = useState(null);
+
   const loadTasks = async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await getTasks();
       setTasks(data.tasks || []);
+      setCacheStatus(data._cache || 'MISS');
     } catch (err) {
       if (err.message === 'UNAUTHORIZED_EXPIRED') {
         setUser(null);
@@ -249,6 +252,22 @@ export default function TasksManager() {
               <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Logged in as: </span>
               <strong style={{ color: '#fff' }}>{user.email}</strong>
               <span style={{ marginLeft: '0.75rem', fontSize: '0.75rem', background: 'rgba(16,185,129,0.2)', color: '#10b981', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>JWT Active ✓</span>
+              {cacheStatus && (
+                <span
+                  style={{
+                    marginLeft: '0.5rem',
+                    fontSize: '0.75rem',
+                    background: cacheStatus === 'HIT' ? 'rgba(56,189,248,0.2)' : 'rgba(245,158,11,0.2)',
+                    color: cacheStatus === 'HIT' ? '#38bdf8' : '#fbbf24',
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: '4px',
+                    fontWeight: 600,
+                  }}
+                  title="Practical 9: In-Memory Caching (node-cache)"
+                >
+                  Cache: {cacheStatus} ({cacheStatus === 'HIT' ? '~2ms memory' : 'MongoDB read'})
+                </span>
+              )}
             </div>
             <button
               type="button"
