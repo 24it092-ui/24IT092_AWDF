@@ -176,9 +176,9 @@ export default function TasksManager() {
       <div className="section-header">
         <div className="section-icon">🔐</div>
         <div>
-          <h2>Practical 7: JWT Authentication & Middleware Pipeline</h2>
+          <h2>Task Management & Auth Portal</h2>
           <p className="section-subtitle">
-            bcrypt hashing, JWT Authorization: Bearer tokens, /me profile, and 401 expiry protection
+            Secure full-stack CRUD with JWT authentication and MongoDB persistence
           </p>
         </div>
       </div>
