@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import Task from './models/Task.js';
 import User from './models/User.js';
+import cache, { cacheStats } from './cache.js';
 
 dotenv.config();
 
@@ -17,7 +18,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key_2026';
 app.use(cors());
 app.use(express.json());
 
-// 1. Global Request Logging Middleware
+// 1. Request logging middleware
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
@@ -44,7 +45,7 @@ async function connectDB() {
     await mongoose.connect(uri, { serverSelectionTimeoutMS: 2000 });
     console.log(`MongoDB connected successfully to ${uri}`);
   } catch (err) {
-    console.log('External MongoDB not found. Starting embedded MongoDB instance...');
+    console.log('Starting embedded MongoDB instance...');
     const mongod = await MongoMemoryServer.create();
     const memoryUri = mongod.getUri();
     await mongoose.connect(memoryUri);
@@ -60,14 +61,16 @@ async function connectDB() {
         { title: 'Complete Practical 4 (RESTful Express API)', priority: 'high', completed: true },
         { title: 'Complete Practical 5 (MongoDB & Mongoose Validation)', priority: 'high', completed: true },
         { title: 'Complete Practical 6 (Full Stack Integration)', priority: 'high', completed: true },
-        { title: 'Complete Practical 7 (JWT Authentication & Middleware)', priority: 'high', completed: false },
+        { title: 'Complete Practical 7 (JWT Authentication & Middleware)', priority: 'high', completed: true },
+        { title: 'Complete Practical 8 (Performance Optimization & Lazy Loading)', priority: 'high', completed: true },
+        { title: 'Complete Practical 9 (In-Memory Caching with node-cache)', priority: 'high', completed: false },
       ]);
     }
   }
 }
 connectDB();
 
-// --- Practical 7: Authentication Middleware ---
+// Authentication Middleware
 export const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -84,127 +87,146 @@ export const authMiddleware = (req, res, next) => {
   }
 };
 
-// --- Practical 7: Input Validation Middleware ---
 const validateTaskInput = (req, res, next) => {
   const { title } = req.body;
   if (!title || typeof title !== 'string' || !title.trim()) {
-    return res.status(400).json({ error: 'Validation Error: Task title is required and cannot be empty' });
+    return res.status(400).json({ error: 'Validation Error: Task title is required' });
   }
   next();
 };
 
-// --- Authentication Endpoints ---
-
-// POST /register - Hash password with bcrypt before saving
+// --- Auth Routes ---
 app.post('/register', async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
-    }
+    if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+    if (password.length < 6) return res.status(400).json({ error: 'Password must be >= 6 chars' });
 
     const existingUser = await User.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
-      return res.status(400).json({ error: 'User with this email already exists' });
-    }
+    if (existingUser) return res.status(400).json({ error: 'User already exists' });
 
-    // Hash password with salt rounds = 10
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.create({ email: email.toLowerCase(), password: hashedPassword });
-
     const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
 
-    res.status(201).json({
-      message: 'User registered successfully',
-      token,
-      user: { id: user._id, email: user.email },
-    });
+    res.status(201).json({ message: 'User registered', token, user: { id: user._id, email: user.email } });
   } catch (err) {
     next(err);
   }
 });
 
-// POST /login - Compare hashed password and return signed JWT
 app.post('/login', async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
+    if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
 
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials: user not found' });
-    }
+    if (!user) return res.status(401).json({ error: 'User not found' });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid credentials: password incorrect' });
-    }
+    if (!isMatch) return res.status(401).json({ error: 'Invalid password' });
 
-    // Sign JWT token with 1h expiry
     const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
-
-    res.status(200).json({
-      message: 'Login successful',
-      token,
-      user: { id: user._id, email: user.email },
-    });
+    res.status(200).json({ message: 'Login successful', token, user: { id: user._id, email: user.email } });
   } catch (err) {
     next(err);
   }
 });
 
-// GET /me - Supplementary: Returns current logged-in user details from decoded JWT
 app.get('/me', authMiddleware, async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
-    if (!user) {
-      return res.status(404).json({ error: 'User profile not found' });
-    }
     res.status(200).json({ user });
   } catch (err) {
     next(err);
   }
 });
 
-// --- Protected Task CRUD Routes (Requires Bearer JWT) ---
+// --- Practical 9 Supplementary: Debug Endpoint for Cache Hit/Miss Stats ---
+app.get('/cache/stats', (req, res) => {
+  res.status(200).json({
+    hits: cacheStats.hits,
+    misses: cacheStats.misses,
+    keys: cache.keys(),
+    ttlSeconds: 60,
+  });
+});
 
+// --- Protected Task CRUD Routes with In-Memory Caching ---
+
+// GET /tasks - Cached with node-cache
 app.get('/tasks', authMiddleware, async (req, res, next) => {
   try {
+    const cacheKey = 'all_tasks';
+    const cachedData = cache.get(cacheKey);
+
+    if (cachedData) {
+      cacheStats.hits++;
+      return res.status(200).json({
+        ...cachedData,
+        _cache: 'HIT',
+      });
+    }
+
+    cacheStats.misses++;
     const tasks = await Task.find().sort({ createdAt: -1 });
-    res.status(200).json({ count: tasks.length, tasks });
+    const responsePayload = {
+      count: tasks.length,
+      tasks,
+    };
+
+    cache.set(cacheKey, responsePayload, 60); // 60s TTL
+    res.status(200).json({
+      ...responsePayload,
+      _cache: 'MISS',
+    });
   } catch (err) {
     next(err);
   }
 });
 
+// GET /tasks/:id - Supplementary: Single-task caching
 app.get('/tasks/:id', authMiddleware, async (req, res, next) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ error: 'Invalid Task ID format' });
     }
+
+    const cacheKey = `task_${req.params.id}`;
+    const cachedTask = cache.get(cacheKey);
+
+    if (cachedTask) {
+      cacheStats.hits++;
+      return res.status(200).json({ task: cachedTask, _cache: 'HIT' });
+    }
+
+    cacheStats.misses++;
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ error: 'Task not found' });
-    res.status(200).json(task);
+
+    cache.set(cacheKey, task, 60);
+    res.status(200).json({ task, _cache: 'MISS' });
   } catch (err) {
     next(err);
   }
 });
 
+// POST /tasks - Invalidate cache on write
 app.post('/tasks', authMiddleware, validateTaskInput, async (req, res, next) => {
   try {
     const { title, description, completed, priority } = req.body;
     const newTask = await Task.create({ title, description, completed, priority });
-    res.status(201).json({ message: 'Task created successfully', task: newTask });
+
+    // Cache Invalidation
+    cache.del('all_tasks');
+
+    res.status(201).json({ message: 'Task created', task: newTask });
   } catch (err) {
     next(err);
   }
 });
 
+// PUT /tasks/:id - Invalidate collection and item cache on write
 app.put('/tasks/:id', authMiddleware, async (req, res, next) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -212,12 +234,18 @@ app.put('/tasks/:id', authMiddleware, async (req, res, next) => {
     }
     const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!updatedTask) return res.status(404).json({ error: 'Task not found' });
-    res.status(200).json({ message: 'Task updated successfully', task: updatedTask });
+
+    // Invalidate caches
+    cache.del('all_tasks');
+    cache.del(`task_${req.params.id}`);
+
+    res.status(200).json({ message: 'Task updated', task: updatedTask });
   } catch (err) {
     next(err);
   }
 });
 
+// DELETE /tasks/:id - Invalidate collection and item cache on write
 app.delete('/tasks/:id', authMiddleware, async (req, res, next) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -225,28 +253,24 @@ app.delete('/tasks/:id', authMiddleware, async (req, res, next) => {
     }
     const deleted = await Task.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ error: 'Task not found' });
-    res.status(200).json({ message: 'Task deleted successfully', task: deleted });
+
+    // Invalidate caches
+    cache.del('all_tasks');
+    cache.del(`task_${req.params.id}`);
+
+    res.status(200).json({ message: 'Task deleted', task: deleted });
   } catch (err) {
     next(err);
   }
 });
 
-// Custom 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route Not Found', path: req.originalUrl });
-});
+app.use((req, res) => res.status(404).json({ error: 'Route Not Found' }));
 
-// Centralized Global Error Handler
 app.use((err, req, res, next) => {
-  console.error('Unhandled Server Error:', err.message);
-  res.status(500).json({
-    error: 'Internal Server Error',
-    message: err.message || 'Something went wrong on the server',
-  });
+  console.error('Unhandled Error:', err.message);
+  res.status(500).json({ error: 'Internal Server Error', message: err.message });
 });
 
-app.listen(PORT, () => {
-  console.log(`Task Manager API with JWT Auth running on http://localhost:${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server with node-cache running on http://localhost:${PORT}`));
 
 export default app;
