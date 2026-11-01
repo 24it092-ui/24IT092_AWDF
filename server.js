@@ -8,7 +8,7 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 import Task from './models/Task.js';
 import User from './models/User.js';
 import cache, { cacheStats } from './cache.js';
-import taskEvents from './events.js';
+import taskEvents, { eventAuditLogs } from './events.js';
 
 dotenv.config();
 
@@ -150,6 +150,14 @@ app.get('/cache/stats', (req, res) => {
     misses: cacheStats.misses,
     keys: cache.keys(),
     ttlSeconds: 60,
+  });
+});
+
+// --- Practical 10: Live Event Audit Logs Endpoint ---
+app.get('/events/audit', (req, res) => {
+  res.status(200).json({
+    count: eventAuditLogs.length,
+    events: eventAuditLogs,
   });
 });
 
