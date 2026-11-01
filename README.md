@@ -1,5 +1,7 @@
 # AWDF Lab Practicals Suite (ITUE301)
 
+![CI Pipeline](https://github.com/24it092-ui/24IT092_AWDF/actions/workflows/ci.yml/badge.svg)
+
 **Student:** NEEL SHAH  
 **Roll No:** 24IT092  
 **Course:** Advanced Web Development Frameworks (ITUE301)  
@@ -23,6 +25,7 @@ Each practical assignment has its own dedicated commit and Git Release Tag. You 
 | **Practical 8** | Performance Optimization & Lazy Loading | [`practical-8`](#) | Route code-splitting with `React.lazy` and `Suspense`, heavy component dynamic load, bundle measurement ([docs/PERFORMANCE.md](docs/PERFORMANCE.md)) |
 | **Practical 9** | In-Memory Caching & Query Optimization | [`practical-9`](#) | `node-cache` integration, 60s TTL, cache invalidation on POST/PUT/DELETE, single-task cache, cache hit/miss stats endpoint ([docs/CACHING.md](docs/CACHING.md)) |
 | **Practical 10** | Asynchronous Processing with Event-Driven Architecture | [`practical-10`](#) | `EventEmitter` asynchronous messaging, `task:created`, `task:updated`, `task:deleted` non-blocking background workers ([docs/EVENTS.md](docs/EVENTS.md)) |
+| **Practical 12** | CI/CD Pipeline with GitHub Actions | [`practical-12`](#) | `.github/workflows/ci.yml`, automated Vitest suite, lint job (Oxlint), build verification, failure/pass docs ([docs/CICD.md](docs/CICD.md)) |
 
 ---
 
