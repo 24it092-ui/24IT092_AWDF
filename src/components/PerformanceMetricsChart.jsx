@@ -11,7 +11,7 @@ export default function PerformanceMetricsChart() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
         <span style={{ fontSize: '1.3rem' }}>⚡</span>
         <h3 style={{ fontSize: '1.1rem', color: '#fff' }}>
-          Practical 8: Lazy Loaded Heavy Component & Bundle Analysis
+          Performance Optimization & Bundle Analysis
         </h3>
       </div>
       <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: '1.25rem' }}>
