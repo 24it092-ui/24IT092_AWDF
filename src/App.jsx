@@ -4,6 +4,7 @@ import NavBar from './components/NavBar';
 import Home from './components/Home';
 import Projects from './components/Projects';
 import Contact from './components/Contact';
+import TasksManager from './components/TasksManager';
 import NotFound from './components/NotFound';
 import Footer from './components/Footer';
 import { INITIAL_STUDENT_DATA } from './data/practicalsData';
@@ -30,6 +31,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home studentData={studentData} />} />
           <Route path="/projects" element={<Projects projectList={studentData.projects} />} />
+          <Route path="/tasks" element={<TasksManager />} />
           <Route path="/contact" element={<Contact studentEmail={studentData.email} />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

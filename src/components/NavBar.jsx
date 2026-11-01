@@ -3,7 +3,8 @@ import { NavLink } from 'react-router-dom';
 export default function NavBar({ isDarkMode, onToggleTheme }) {
   const routes = [
     { to: '/', label: 'Home' },
-    { to: '/projects', label: 'Projects' },
+    { to: '/projects', label: 'Projects (API)' },
+    { to: '/tasks', label: 'MongoDB Tasks' },
     { to: '/contact', label: 'Contact' },
   ];
 
