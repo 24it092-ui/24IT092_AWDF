@@ -11,24 +11,7 @@ export default function NavBar({ activeSection, onNavigate, practicalList, curre
       <div className="navbar-container">
         <div className="navbar-brand">
           <span className="brand-logo">⚡</span>
-          <span className="brand-text">AWDF Lab Suite</span>
-        </div>
-
-        {/* Practical Switcher Dropdown for seamless integration of all 14 practicals */}
-        <div className="practical-selector-wrapper">
-          <label htmlFor="practical-select" className="selector-label">Practical:</label>
-          <select
-            id="practical-select"
-            className="practical-select"
-            value={currentPractical}
-            onChange={(e) => onSelectPractical(Number(e.target.value))}
-          >
-            {practicalList.map((p) => (
-              <option key={p.id} value={p.id} disabled={!p.available}>
-                Practical {p.id}: {p.title} {!p.available ? '(Upcoming)' : '✓'}
-              </option>
-            ))}
-          </select>
+          <span className="brand-text">NEEL SHAH • Portfolio</span>
         </div>
 
         {/* In-page active navigation */}

@@ -3,7 +3,7 @@ export default function Footer({ studentName, year = new Date().getFullYear(), g
     <footer className="portfolio-footer">
       <div className="footer-content">
         <p className="footer-copyright">
-          © {year} <strong>{studentName}</strong> • Charotar University of Science and Technology (CHARUSAT)
+          © {year} <strong>{studentName}</strong> • CSPIT, CHARUSAT
         </p>
         <p className="footer-meta">
           B.Tech IT/CE/CSE/AIML | Advanced Web Development Frameworks (ITUE301)
