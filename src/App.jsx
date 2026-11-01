@@ -1,57 +1,45 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import NavBar from './components/NavBar';
-import Practical1View from './components/practical1/Practical1View';
-import { PRACTICAL_REGISTRY, INITIAL_STUDENT_DATA } from './data/practicalsData';
+import Home from './components/Home';
+import Projects from './components/Projects';
+import Contact from './components/Contact';
+import NotFound from './components/NotFound';
+import Footer from './components/Footer';
+import { INITIAL_STUDENT_DATA } from './data/practicalsData';
 import './index.css';
 
 export default function App() {
-  const [currentPractical, setCurrentPractical] = useState(1);
-  const [activeSection, setActiveSection] = useState('about');
-  const [themeColor, setThemeColor] = useState('#6366f1');
   const [studentData] = useState(INITIAL_STUDENT_DATA);
+  // useState: Dark / Light Mode Toggle
+  const [isDarkMode, setIsDarkMode] = useState(true);
 
-  // Smooth scroll handler for in-page navigation
-  const handleNavigate = (sectionId) => {
-    setActiveSection(sectionId);
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.remove('light-theme');
+    } else {
+      document.documentElement.classList.add('light-theme');
     }
-  };
+  }, [isDarkMode]);
 
   return (
     <div className="app-shell">
-      {/* Top Navigation Bar with active highlight & Practical switcher */}
-      <NavBar
-        activeSection={activeSection}
-        onNavigate={handleNavigate}
-        practicalList={PRACTICAL_REGISTRY}
-        currentPractical={currentPractical}
-        onSelectPractical={setCurrentPractical}
-      />
+      <NavBar isDarkMode={isDarkMode} onToggleTheme={() => setIsDarkMode(!isDarkMode)} />
 
-      {/* Main Content Area */}
       <main className="main-content">
-        {currentPractical === 1 && (
-          <Practical1View
-            studentData={studentData}
-            themeColor={themeColor}
-            onColorChange={setThemeColor}
-          />
-        )}
-
-        {currentPractical > 1 && (
-          <div className="portfolio-section card" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-            <h2>Practical {currentPractical}</h2>
-            <p className="section-subtitle" style={{ marginTop: '0.5rem' }}>
-              {PRACTICAL_REGISTRY.find((p) => p.id === currentPractical)?.title}
-            </p>
-            <div style={{ marginTop: '2rem', color: 'var(--text-muted)' }}>
-              Ready for upcoming practical integration. The unified workspace architecture is established.
-            </div>
-          </div>
-        )}
+        <Routes>
+          <Route path="/" element={<Home studentData={studentData} />} />
+          <Route path="/projects" element={<Projects projectList={studentData.projects} />} />
+          <Route path="/contact" element={<Contact studentEmail={studentData.email} />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </main>
+
+      <Footer
+        studentName={studentData.name}
+        githubUrl={studentData.githubUrl}
+        email={studentData.email}
+      />
     </div>
   );
 }
